@@ -2,7 +2,6 @@ package mdns
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"net"
 	"sync"
@@ -168,7 +167,7 @@ func (s *Server) recv(c *net.UDPConn) {
 			continue
 		}
 		if err := s.parsePacket(buf[:n], from); err != nil {
-			log.Printf("[ERR] mdns: Failed to handle query: %v", err)
+			log.Errorf("mdns: Failed to handle query: %v", err)
 		}
 	}
 }
@@ -177,7 +176,7 @@ func (s *Server) recv(c *net.UDPConn) {
 func (s *Server) parsePacket(packet []byte, from net.Addr) error {
 	var msg dns.Msg
 	if err := msg.Unpack(packet); err != nil {
-		log.Printf("[ERR] mdns: Failed to unpack packet: %v", err)
+		log.Errorf("mdns: Failed to unpack packet: %v", err)
 		return err
 	}
 	return s.handleQuery(&msg, from)
@@ -185,6 +184,8 @@ func (s *Server) parsePacket(packet []byte, from net.Addr) error {
 
 // handleQuery is used to handle an incoming query
 func (s *Server) handleQuery(query *dns.Msg, from net.Addr) error {
+	// log.Debugf("recv:[%v]\n%+v", from, query)
+
 	if query.Opcode != dns.OpcodeQuery {
 		// "In both multicast query and multicast response messages, the OPCODE MUST
 		// be zero on transmission (only standard queries are currently supported
@@ -314,9 +315,13 @@ func (s *Server) handleQuestion(q dns.Question) (multicastRecs, unicastRecs []dn
 
 func (s *Server) probe() {
 	defer s.wg.Done()
+	var sd *MDNSService
 
-	sd, ok := s.config.Zone.(*MDNSService)
-	if !ok {
+	if v, ok := s.config.Zone.(*MDNSService); ok {
+		sd = v
+	} else if v, ok := s.config.Zone.(*DNSSDService); ok {
+		sd = v.MDNSService
+	} else {
 		return
 	}
 
@@ -353,7 +358,7 @@ func (s *Server) probe() {
 
 	for i := 0; i < 3; i++ {
 		if err := s.multicastResponse(q); err != nil {
-			log.Println("[ERR] mdns: failed to send probe:", err.Error())
+			log.Errorf("mdns: failed to send probe: %v", err)
 		}
 		time.Sleep(time.Duration(randomizer.Intn(250)) * time.Millisecond)
 	}
@@ -379,7 +384,7 @@ func (s *Server) probe() {
 	timer := time.NewTimer(timeout)
 	for i := 0; i < 3; i++ {
 		if err := s.multicastResponse(resp); err != nil {
-			log.Println("[ERR] mdns: failed to send announcement:", err.Error())
+			log.Errorf("mdns: failed to send announcement: %v", err)
 		}
 		select {
 		case <-timer.C:

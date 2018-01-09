@@ -1,6 +1,10 @@
 package mdns
 
-import "github.com/miekg/dns"
+import (
+	"fmt"
+
+	"github.com/miekg/dns"
+)
 
 // DNSSDService is a service that complies with the DNS-SD (RFC 6762) and MDNS
 // (RFC 6762) specs for local, multicast-DNS-based discovery.
@@ -35,7 +39,8 @@ type DNSSDService struct {
 // instance.
 func (s *DNSSDService) Records(q dns.Question) []dns.RR {
 	var recs []dns.RR
-	if q.Name == "_services._dns-sd._udp."+s.MDNSService.Domain+"." {
+
+	if q.Name == fmt.Sprintf("_services._dns-sd._udp.%v.", s.MDNSService.Domain) {
 		recs = s.dnssdMetaQueryRecords(q)
 	}
 	return append(recs, s.MDNSService.Records(q)...)

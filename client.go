@@ -2,17 +2,19 @@ package mdns
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/miekg/dns"
+	"github.com/op/go-logging"
 	"golang.org/x/net/context"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
 )
+
+var log = logging.MustGetLogger(`mdns`)
 
 // ServiceEntry is returned after we query for a service
 type ServiceEntry struct {
@@ -143,13 +145,11 @@ func Listen(entries chan<- *ServiceEntry, exit chan struct{}) error {
 				m.SetQuestion(e.Name, dns.TypePTR)
 				m.RecursionDesired = false
 				if err := client.sendQuery(m); err != nil {
-					log.Printf("[ERR] mdns: Failed to query instance %s: %v", e.Name, err)
+					log.Errorf("mdns: Failed to query instance %s: %v", e.Name, err)
 				}
 			}
 		}
 	}
-
-	return nil
 }
 
 // Lookup is the same as Query, however it uses all the default parameters
@@ -180,11 +180,11 @@ func newClient() (*client, error) {
 	// Create a IPv4 listener
 	uconn4, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
 	if err != nil {
-		log.Printf("[ERR] mdns: Failed to bind to udp4 port: %v", err)
+		log.Errorf("mdns: Failed to bind to udp4 port: %v", err)
 	}
 	uconn6, err := net.ListenUDP("udp6", &net.UDPAddr{IP: net.IPv6zero, Port: 0})
 	if err != nil {
-		log.Printf("[ERR] mdns: Failed to bind to udp6 port: %v", err)
+		log.Errorf("mdns: Failed to bind to udp6 port: %v", err)
 	}
 
 	if uconn4 == nil && uconn6 == nil {
@@ -193,11 +193,11 @@ func newClient() (*client, error) {
 
 	mconn4, err := net.ListenUDP("udp4", mdnsWildcardAddrIPv4)
 	if err != nil {
-		log.Printf("[ERR] mdns: Failed to bind to udp4 port: %v", err)
+		log.Errorf("mdns: Failed to bind to udp4 port: %v", err)
 	}
 	mconn6, err := net.ListenUDP("udp6", mdnsWildcardAddrIPv6)
 	if err != nil {
-		log.Printf("[ERR] mdns: Failed to bind to udp6 port: %v", err)
+		log.Errorf("mdns: Failed to bind to udp6 port: %v", err)
 	}
 
 	if mconn4 == nil && mconn6 == nil {
@@ -350,7 +350,7 @@ func (c *client) query(params *QueryParam) error {
 				m.SetQuestion(inp.Name, dns.TypePTR)
 				m.RecursionDesired = false
 				if err := c.sendQuery(m); err != nil {
-					log.Printf("[ERR] mdns: Failed to query instance %s: %v", inp.Name, err)
+					log.Errorf("mdns: Failed to query instance %s: %v", inp.Name, err)
 				}
 			}
 		case <-params.Context.Done():
